@@ -344,3 +344,7 @@ __pycache__/
 
 # OpenCover UI analysis results
 OpenCover/
+
+stdafx.cpp
+stdafx.h
+targetver.h
