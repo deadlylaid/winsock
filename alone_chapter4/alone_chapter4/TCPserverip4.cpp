@@ -1,10 +1,9 @@
 #pragma comment(lib, "ws2_32")
 #include <winsock2.h>
-#include <ws2tcpip.h> //ipv6
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SERVERPORT 9000
+
 #define BUFSIZE 512
 
 void err_quit(char *msg)
@@ -35,29 +34,28 @@ void err_display(char *msg)
 
 int main(int argc, char *argv[])
 {
+    //#define SERVERPORT 8000
+	char buf_Port[BUFSIZE + 1];
+	printf("\n 서버에서 사용할 포트번호를 입력하시오");
+	if (fgets(buf_Port, BUFSIZE + 1, stdin) == NULL)
+		return 0;
+	unsigned short shPortNum = atoi(buf_Port);
 	int retval;
 
-	char cPortNumber[BUFSIZE + 1];
-	printf("\n 서버에서 사용할 포트번호를 입력하시오");
-	if (fgets(cPortNumber, BUFSIZE + 1, stdin) == NULL)
-		return 0;
-	unsigned short iPortNumber = atoi(cPortNumber);
-	
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 		return 1;
 
 	//socket()
-	SOCKET listen_sock = socket(AF_INET6, SOCK_STREAM, 0);
+	SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (listen_sock == INVALID_SOCKET) err_quit("socket()");
 
 	// bind()
-	SOCKADDR_IN6 serveraddr;
+	SOCKADDR_IN serveraddr;
 	ZeroMemory(&serveraddr, sizeof(serveraddr));
-	serveraddr.sin6_family = AF_INET6;
-	serveraddr.sin6_addr = in6addr_any;
-	//printf("서버에서 사용할 포트번호는 %d 입니다.", &iPortNumber);
-	serveraddr.sin6_port = htons(iPortNumber);
+	serveraddr.sin_family = AF_INET;
+	serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serveraddr.sin_port = htons(shPortNum);
 	retval = bind(listen_sock, (SOCKADDR *)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) err_quit("bind()");
 
@@ -67,7 +65,7 @@ int main(int argc, char *argv[])
 
 	// 데이터 통신에 사용할 변수
 	SOCKET client_sock;
-	SOCKADDR_IN6 clientaddr;
+	SOCKADDR_IN clientaddr;
 	int addrlen;
 	char buf[BUFSIZE + 1];
 
@@ -80,15 +78,9 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-
-		// 접속한 클라이언트 정보 출력
-		char ipaddr[50];
-		DWORD ipaddrlen = sizeof(ipaddr);
-		WSAAddressToString((SOCKADDR *)&clientaddr, sizeof(clientaddr),
-			NULL, ipaddr, &ipaddrlen);
 		// IPv4
-		// printf("\n[TCP 서버] 클라이언트 접속: IP 주소=%s, 포트 번호=%d\n",
-		//	inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+		printf("\n[TCP 서버] 클라이언트 접속: IP 주소=%s, 포트 번호=%d\n",
+			inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
 
 		// 클라이언트와 데이터 통신
 		while (1) {
@@ -102,14 +94,31 @@ int main(int argc, char *argv[])
 				break;
 
 			// 받은 데이터 출력
-			buf[retval] = '\0';
-			printf("[TCP/%s] %s\n", ipaddr, buf);
 			//IPv4
-			//printf("[TCP/%s:%d] %s\n", inet_ntoa(clientaddr.sin_addr),
-			//	ntohs(clientaddr.sin_port), buf);
+			buf[retval] = '\0';
+			printf("[TCP/%s:%d] %s\n", inet_ntoa(clientaddr.sin_addr),
+				ntohs(clientaddr.sin_port), buf);
 
 			// 데이터 보내기
-			retval = send(client_sock, buf, retval, 0);
+			//retval = send(client_sock, strupr(buf), retval, 0);
+			char *str = strtok(buf, " ");
+			int iSum = 0;
+
+			while (str != NULL)            // 자른 문자열이 나오지 않을 때까지 반복
+			{
+				int iNum = atoi(str);
+				iSum += iNum;         
+
+				str = strtok(NULL, " ");   // 다음 문자열을 잘라서 포인터를 반환
+			}
+
+			printf("%d", iSum);
+
+			char buf2[513];
+			itoa(iSum, buf2, 10);//itoa 정수를 문자형으로 변환
+
+			retval = send(client_sock, buf2, retval, 0);
+
 			if (retval == SOCKET_ERROR) {
 				err_display("send()");
 				break;
@@ -117,12 +126,9 @@ int main(int argc, char *argv[])
 		}
 
 		// closesocket()
-		closesocket(client_sock);
-		printf("[TCP 서버] 클라이언트 종료: %s\n", ipaddr);
-
 		//IPv4
-		//printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",
-		//	inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
+		printf("[TCP 서버] 클라이언트 종료: IP 주소=%s, 포트 번호=%d\n",
+			inet_ntoa(clientaddr.sin_addr), ntohs(clientaddr.sin_port));
 	}
 
 	// closesocket()

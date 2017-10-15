@@ -1,11 +1,11 @@
 #pragma comment(lib, "ws2_32")
 #include <winsock2.h>
-#include <ws2tcpip.h> //IPv6
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
-#define SERVERIP "::1"
-#define SERVERPORT 9000
+#define SERVERIP "127.0.0.1"
+#define SERVERPORT 8000
 #define BUFSIZE 512
 
 // 소켓 함수 오류 출력 후 종료
@@ -57,35 +57,32 @@ int recvn(SOCKET s, char *buf, int len, int flags)
 int main(int argc, char *argv[])
 {
 	int retval;
-
-	char cServerIP[BUFSIZE + 1];
-	printf("\n 클라이언트에서 사용할 아이피 입력하시오");
-	scanf("%s", cServerIP);
-	getchar();
-	
-	char cPortNumber[BUFSIZE + 1];
-	printf("\n 클라이언트에서 사용할 포트번호를 입력하시오");
-	if (fgets(cPortNumber, BUFSIZE + 1, stdin) == NULL)
+	char ServerIP[BUFSIZE + 1];
+	printf("\n 클라이언트에서 사용할 서버IP를 입력하시오");
+	if (fgets(ServerIP, BUFSIZE + 1, stdin) == NULL)
 		return 0;
-	unsigned short iPortNumber = atoi(cPortNumber);
-	
+
+	char buf_Port[BUFSIZE + 1];
+	printf("\n 클라이언트에서 사용할 포트번호를 입력하시오");
+	if (fgets(buf_Port, BUFSIZE + 1, stdin) == NULL)
+		return 0;
+	unsigned short shPortNum = atoi(buf_Port);
+
+	//윈속 초기화
 	WSADATA wsa;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
 		return 1;
 
 	//socket()
-	SOCKET sock = socket(AF_INET6, SOCK_STREAM, 0);
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock == INVALID_SOCKET) err_quit("socket()");
 
 	//connect()
-	SOCKADDR_IN6 serveraddr;
+	SOCKADDR_IN serveraddr;
 	ZeroMemory(&serveraddr, sizeof(serveraddr));
-	serveraddr.sin6_family = AF_INET6;
-	int addrlen = sizeof(serveraddr);
-	WSAStringToAddress(cServerIP, AF_INET6, NULL,
-		(SOCKADDR *)&serveraddr, &addrlen);
-	// serveraddr.sin_addr.s_addr = inet_addr(SERVERIP);
-	serveraddr.sin6_port = htons(iPortNumber);
+	serveraddr.sin_family = AF_INET;
+    serveraddr.sin_addr.s_addr = inet_addr(ServerIP);
+	serveraddr.sin_port = htons(shPortNum);
 	retval = connect(sock, (SOCKADDR *)&serveraddr, sizeof(serveraddr));
 	if (retval == SOCKET_ERROR) err_quit("connect()");
 
